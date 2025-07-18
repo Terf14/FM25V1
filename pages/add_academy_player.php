@@ -20,8 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $query = $conn->prepare("INSERT INTO Academy_Players (name, position, user_id) VALUES (?, ?, ?)");
     $query->execute([$name, $position, $user_id]);
 
-    // เปลี่ยนเส้นทางหลังจากเพิ่มเสร็จ
-    header("Location: academy.php");
+    // เพิ่ม alert ให้ผู้ใช้ทราบว่าเพิ่มสำเร็จ
+    echo "<script>alert('เพิ่มนักเตะเยาวชนสำเร็จแล้ว!'); window.location.href='academy.php';</script>";
     exit;
 }
 ?>
@@ -46,10 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <body class="bg-gray-50 text-gray-800">
     <div class="flex h-screen overflow-hidden">
-        <!-- Sidebar -->
-        <?php include '../includes/navbar.php'; ?>
+        <?php include '../includes/navbar.php'; /* */ ?>
 
-        <!-- Main Content -->
         <main class="flex-1 overflow-y-auto px-10 py-8">
             <div class="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h1 class="text-xl font-semibold flex items-center gap-2 mb-6">
@@ -99,7 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <script>
     lucide.createIcons();
 
-    // เพิ่ม * ต่อท้ายชื่อก่อนส่งฟอร์ม
+    // ส่วนนี้เคยเป็นโค้ดที่เพิ่ม * ต่อท้ายชื่อนักเตะ
+    // ถูกคอมเมนต์/ลบออกตามคำขอ
+    /*
     document.querySelector("form").addEventListener("submit", function (e) {
         const nameInput = document.getElementById("name");
         if (nameInput.value.trim() !== "") {
@@ -109,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
     });
+    */
 </script>
 
 </body>

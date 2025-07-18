@@ -49,7 +49,6 @@
     </a>
   </nav>
 
-
   <!-- Logout -->
   <div class="mt-auto border-t border-gray-200 pt-6">
     <a href="settings.php" class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100">
@@ -59,4 +58,18 @@
       <i data-lucide="log-out" class="w-4 h-4"></i> ออกจากระบบ
     </a>
   </div>
+
+  <aside class="w-64 h-full border-r border-gray-200 bg-white px-6 py-8 flex flex-col">
+    <div class="mt-auto border-t border-gray-200 pt-6">
+      <a href="settings.php" class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100">
+        <i data-lucide="settings" class="w-4 h-4"></i> ตั้งค่า
+      </a>
+      <a href="logout.php" class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 text-red-500">
+        <i data-lucide="log-out" class="w-4 h-4"></i> ออกจากระบบ
+      </a>
+    </div>
+  </aside>
+
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 </aside>

@@ -5,14 +5,17 @@ include "../includes/auth.php";
 
 if (isset($_GET['id'])) {
     $player_id = $_GET['id'];
+    $user_id = $_SESSION['user_id']; // ดึง user_id จาก session
 
     if ($conn instanceof PDO) {
-        $query = "SELECT * FROM Players WHERE player_id = ?";
+        // ดึงข้อมูลนักเตะ รวมถึง is_academy_product, injured, injured_count
+        $query = "SELECT * FROM Players WHERE player_id = ? AND user_id = ?"; // เพิ่ม user_id ในเงื่อนไข
         $stmt = $conn->prepare($query);
-        $stmt->execute([$player_id]);
+        $stmt->execute([$player_id, $user_id]);
         $player = $stmt->fetch(PDO::FETCH_ASSOC);
     } else {
-        $query = "SELECT * FROM Players WHERE player_id = $player_id";
+        // สำหรับ mysqli
+        $query = "SELECT * FROM Players WHERE player_id = $player_id AND user_id = $user_id";
         $result = mysqli_query($conn, $query);
         $player = mysqli_fetch_assoc($result);
     }
@@ -25,8 +28,8 @@ if (isset($_GET['id'])) {
     // ตรวจสอบการกดปุ่ม "ย้าย"
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['move'])) {
         if ($conn instanceof PDO) {
-            $query = "INSERT INTO former_players (player_id, name, role, position, jersey_number, status, injured, user_id) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            $query = "INSERT INTO former_players (player_id, name, role, position, jersey_number, status, injured, injured_count, user_id, is_academy_product) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"; // เพิ่ม injured_count, is_academy_product
             $stmt = $conn->prepare($query);
             $stmt->execute([
                 $player['player_id'],
@@ -36,19 +39,22 @@ if (isset($_GET['id'])) {
                 $player['jersey_number'],
                 $player['status'],
                 $player['injured'],
-                $player['user_id']
+                $player['injured_count'], // เพิ่ม injured_count
+                $player['user_id'],
+                $player['is_academy_product'] // เพิ่ม is_academy_product
             ]);
 
-            $query = "DELETE FROM Players WHERE player_id = ?";
+            $query = "DELETE FROM Players WHERE player_id = ? AND user_id = ?"; // เพิ่ม user_id ในเงื่อนไข
             $stmt = $conn->prepare($query);
-            $stmt->execute([$player_id]);
+            $stmt->execute([$player_id, $user_id]);
         } else {
-            $query = "INSERT INTO former_players (player_id, name, role, position, jersey_number, status, injured, user_id) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            // สำหรับ mysqli
+            $query = "INSERT INTO former_players (player_id, name, role, position, jersey_number, status, injured, injured_count, user_id, is_academy_product) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = mysqli_prepare($conn, $query);
             mysqli_stmt_bind_param(
                 $stmt,
-                'issssssi',
+                'issssssiii', // เพิ่ม i สำหรับ injured_count, is_academy_product
                 $player['player_id'],
                 $player['name'],
                 $player['role'],
@@ -56,13 +62,15 @@ if (isset($_GET['id'])) {
                 $player['jersey_number'],
                 $player['status'],
                 $player['injured'],
-                $player['user_id']
+                $player['injured_count'],
+                $player['user_id'],
+                $player['is_academy_product']
             );
             mysqli_stmt_execute($stmt);
 
-            $query = "DELETE FROM Players WHERE player_id = ?";
+            $query = "DELETE FROM Players WHERE player_id = ? AND user_id = ?";
             $stmt = mysqli_prepare($conn, $query);
-            mysqli_stmt_bind_param($stmt, 'i', $player_id);
+            mysqli_stmt_bind_param($stmt, 'ii', $player_id, $user_id);
             mysqli_stmt_execute($stmt);
         }
 
@@ -73,13 +81,14 @@ if (isset($_GET['id'])) {
     // ตรวจสอบการกดปุ่ม "ลบ"
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
         if ($conn instanceof PDO) {
-            $query = "DELETE FROM Players WHERE player_id = ?";
+            $query = "DELETE FROM Players WHERE player_id = ? AND user_id = ?"; // เพิ่ม user_id ในเงื่อนไข
             $stmt = $conn->prepare($query);
-            $stmt->execute([$player_id]);
+            $stmt->execute([$player_id, $user_id]);
         } else {
+            // สำหรับ mysqli
             $query = "DELETE FROM Players WHERE player_id = ?";
             $stmt = mysqli_prepare($conn, $query);
-            mysqli_stmt_bind_param($stmt, 'i', $player_id);
+            mysqli_stmt_bind_param($stmt, 'ii', $player_id, $user_id);
             mysqli_stmt_execute($stmt);
         }
 
@@ -94,16 +103,48 @@ if (isset($_GET['id'])) {
         $position = $_POST['position'];
         $jersey_number = $_POST['jersey_number'];
         $status = $_POST['status'];
-        $injured = $_POST['injured'];
+        // บาดเจ็บ
+        $injured_checkbox = isset($_POST['injured_checkbox']) ? 1 : 0; // 1 ถ้าติ๊ก, 0 ถ้าไม่ติ๊ก
+        $add_injured_days = isset($_POST['add_injured_days']) ? (int)$_POST['add_injured_days'] : 0;
+
+        // ดึงค่า injured_count ปัจจุบันจาก player object
+        $current_injured_count = $player['injured_count'];
+        $new_injured_count = $current_injured_count + $add_injured_days;
+
+        // is_academy_product (ยังไม่ให้แก้ไขจากหน้านี้ เพื่อคงสถานะที่ถูก set ตอน promote)
+        // $is_academy_product = isset($_POST['is_academy_product']) ? 1 : 0; 
 
         if ($conn instanceof PDO) {
-            $query = "UPDATE Players SET name = ?, role = ?, position = ?, jersey_number = ?, status = ?, injured = ? WHERE player_id = ?";
+            $query = "UPDATE Players SET name = ?, role = ?, position = ?, jersey_number = ?, status = ?, injured = ?, injured_count = ? WHERE player_id = ? AND user_id = ?"; // เพิ่ม injured, injured_count
             $stmt = $conn->prepare($query);
-            $stmt->execute([$name, $role, $position, $jersey_number, $status, $injured, $player_id]);
+            $stmt->execute([
+                $name,
+                $role,
+                $position,
+                $jersey_number,
+                $status,
+                $injured_checkbox, // อัปเดต injured ตาม checkbox
+                $new_injured_count, // อัปเดต injured_count
+                $player_id,
+                $user_id
+            ]);
         } else {
-            $query = "UPDATE Players SET name = ?, role = ?, position = ?, jersey_number = ?, status = ?, injured = ? WHERE player_id = ?";
+            // สำหรับ mysqli
+            $query = "UPDATE Players SET name = ?, role = ?, position = ?, jersey_number = ?, status = ?, injured = ?, injured_count = ? WHERE player_id = ? AND user_id = ?";
             $stmt = mysqli_prepare($conn, $query);
-            mysqli_stmt_bind_param($stmt, 'ssssssi', $name, $role, $position, $jersey_number, $status, $injured, $player_id);
+            mysqli_stmt_bind_param(
+                $stmt,
+                'sssssiiii', // เพิ่ม i สำหรับ injured, injured_count
+                $name,
+                $role,
+                $position,
+                $jersey_number,
+                $status,
+                $injured_checkbox,
+                $new_injured_count,
+                $player_id,
+                $user_id
+            );
             mysqli_stmt_execute($stmt);
         }
 
@@ -136,10 +177,8 @@ if (isset($_GET['id'])) {
 
 <body class="bg-gray-50 text-gray-800">
     <div class="flex h-screen overflow-hidden">
-        <!-- Sidebar -->
         <?php include '../includes/navbar.php'; ?>
 
-        <!-- Main Content -->
         <main class="flex-1 overflow-y-auto px-10 py-8">
             <div class="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h1 class="text-xl font-semibold flex items-center gap-2 mb-6">
@@ -191,7 +230,7 @@ if (isset($_GET['id'])) {
                                 <?php
                                 $positions = ['st', 'cf', 'lw', 'rw', 'lm', 'rm', 'cam', 'cm', 'cdm', 'rb', 'lb', 'cb', 'gk'];
                                 foreach ($positions as $pos) {
-                                    echo "<option value='$pos'" . ($player['position'] === $pos ? ' selected' : '') . ">" . strtoupper($pos) . "</option>";
+                                    echo "<option value='$pos'" . ($player['position'] === $pos ? 'selected' : '') . ">" . strtoupper($pos) . "</option>";
                                 }
                                 ?>
                             </select>
@@ -203,10 +242,31 @@ if (isset($_GET['id'])) {
                         </div>
                     </div>
 
-                    <div>
-                        <label for="injured" class="text-sm font-medium text-gray-700">บาดเจ็บ</label>
-                        <input type="text" id="injured" name="injured" value="<?= htmlspecialchars($player['injured']); ?>" required
-                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-900">
+                    <div class="border border-gray-200 p-4 rounded-lg bg-gray-50">
+                        <label class="block text-sm font-semibold text-gray-800 mb-2">ข้อมูลการบาดเจ็บ</label>
+                        <div class="flex items-center gap-3 mb-2">
+                            <input type="checkbox" id="injured_checkbox" name="injured_checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                <?= $player['injured'] > 0 ? 'checked' : ''; ?>>
+                            <label for="injured_checkbox" class="text-sm font-medium text-gray-700">นักเตะบาดเจ็บอยู่</label>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <label for="injured_count" class="text-sm font-medium text-gray-700">จำนวนวันบาดเจ็บสะสม:</label>
+                            <span id="current_injured_count" class="text-lg font-bold text-gray-900"><?= htmlspecialchars($player['injured_count']); ?> วัน</span>
+                        </div>
+                        <div class="mt-3">
+                            <label for="add_injured_days" class="block text-sm font-medium text-gray-700 mb-1">เพิ่มจำนวนวันบาดเจ็บ (กรอกตัวเลข):</label>
+                            <input type="number" id="add_injured_days" name="add_injured_days" value="0" min="0"
+                                class="w-32 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400">
+                        </div>
+                    </div>
+
+                    <div class="border border-gray-200 p-4 rounded-lg bg-gray-50">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="is_academy_product" name="is_academy_product" class="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                                <?= $player['is_academy_product'] == 1 ? 'checked' : ''; ?> disabled>
+                            <label for="is_academy_product" class="text-sm font-medium text-gray-700">นักเตะจาก Academy</label>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">สถานะนี้จะถูกตั้งค่าอัตโนมัติเมื่อดันนักเตะจาก Academy ขึ้นชุดใหญ่</p>
                     </div>
 
                     <div class="flex flex-wrap justify-center gap-4 pt-4">
@@ -216,12 +276,14 @@ if (isset($_GET['id'])) {
                         </button>
 
                         <button type="submit" name="delete"
-                            class="flex items-center gap-2 bg-red-500 text-white px-6 py-2 rounded-md hover:bg-red-600 transition font-medium">
+                            class="flex items-center gap-2 bg-red-500 text-white px-6 py-2 rounded-md hover:bg-red-600 transition font-medium"
+                            onclick="return confirm('คุณแน่ใจหรือไม่ว่าต้องการลบนักเตะคนนี้? การกระทำนี้ไม่สามารถย้อนกลับได้');">
                             <i data-lucide="trash" class="w-5 h-5"></i> ลบ
                         </button>
 
                         <button type="submit" name="move"
-                            class="flex items-center gap-2 bg-yellow-500 text-white px-6 py-2 rounded-md hover:bg-yellow-600 transition font-medium">
+                            class="flex items-center gap-2 bg-yellow-500 text-white px-6 py-2 rounded-md hover:bg-yellow-600 transition font-medium"
+                            onclick="return confirm('คุณแน่ใจหรือไม่ว่าต้องการย้ายนักเตะคนนี้ไปอดีตนักเตะ?');">
                             <i data-lucide="move-right" class="w-5 h-5"></i> ย้ายผู้เล่น
                         </button>
 

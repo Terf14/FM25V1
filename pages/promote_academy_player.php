@@ -14,10 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['player_id'])) {
 
     if ($player) {
         // เพิ่มข้อมูลไปยังตาราง players โดยใช้ user_id ที่ถูกต้อง
+        // และตั้งค่า is_academy_product เป็น 1
         $insertQuery = $conn->prepare("
-            INSERT INTO players (user_id, name, position, role, status)
-            VALUES (?, ?, ?, 'prospect', 'no')
-        ");
+            INSERT INTO players (user_id, name, position, role, status, is_academy_product)
+            VALUES (?, ?, ?, 'prospect', 'no', 1)
+        "); // เพิ่ม is_academy_product และตั้งค่าเป็น 1
         $insertQuery->execute([
             $user_id,  // ใช้ user_id ของผู้ใช้ที่ล็อกอิน
             $player['name'],
